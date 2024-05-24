@@ -1,13 +1,13 @@
 package com.zenjob.challenge.entity;
 
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.Accessors;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import javax.persistence.*;
-import javax.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -20,6 +20,7 @@ import java.util.UUID;
 @Accessors(chain = true)
 @EntityListeners(AuditingEntityListener.class)
 public class Shift {
+
     @Id
     @GeneratedValue(generator = "UUID")
     private UUID id;
@@ -41,4 +42,5 @@ public class Shift {
 
     @LastModifiedDate
     private Instant updatedAt;
+
 }

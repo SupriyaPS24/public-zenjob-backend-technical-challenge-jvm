@@ -1,37 +1,33 @@
 package com.zenjob.challenge.controller;
 
+import com.zenjob.challenge.dto.BookTalentRequestDto;
+import com.zenjob.challenge.dto.GetShiftsResponse;
 import com.zenjob.challenge.dto.ResponseDto;
-import com.zenjob.challenge.service.JobService;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.zenjob.challenge.dto.ShiftResponse;
+import com.zenjob.challenge.service.ShiftService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.ResponseStatus;
 
-import javax.validation.Valid;
-import java.time.Instant;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-@Controller
+@RestController
 @RequestMapping(path = "/shift")
 @RequiredArgsConstructor
 public class ShiftController {
-    private final JobService jobService;
+
+    private final ShiftService shiftService;
 
     @GetMapping(path = "/{jobId}")
     @ResponseBody
     public ResponseDto<GetShiftsResponse> getShifts(@PathVariable("jobId") UUID uuid) {
-        List<ShiftResponse> shiftResponses = jobService.getShifts(uuid).stream()
+        List<ShiftResponse> shiftResponses = shiftService.getShifts(uuid).stream()
                 .map(shift -> ShiftResponse.builder()
                         .id(uuid)
                         .talentId(shift.getTalentId())
@@ -49,29 +45,22 @@ public class ShiftController {
 
     @PatchMapping(path = "/{id}/book")
     @ResponseStatus(code = HttpStatus.NO_CONTENT)
-    public void bookTalent(@PathVariable("id") UUID shiftId, @RequestBody @Valid ShiftController.BookTalentRequestDto dto) {
-        jobService.bookTalent(shiftId, dto.talent);
+    public void bookTalent(@PathVariable("id") UUID shiftId, @RequestBody @Valid BookTalentRequestDto dto) {
+        shiftService.bookTalent(shiftId, dto.getTalent());
     }
 
-    @NoArgsConstructor
-    @Data
-    private static class BookTalentRequestDto {
-        UUID talent;
+    @DeleteMapping("/cancelShift/{shiftId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public ResponseEntity<String> cancelShift(@PathVariable UUID shiftId) {
+        boolean isCancelled = shiftService.cancelShift(shiftId);
+        return isCancelled ? ResponseEntity.ok("Shift: " + shiftId + " is cancelled")
+                : ResponseEntity.status(HttpStatus.NOT_FOUND).body("No Shift found for given ShiftId: " + shiftId);
     }
 
-    @Builder
-    @Data
-    private static class GetShiftsResponse {
-        List<ShiftResponse> shifts;
-    }
-
-    @Builder
-    @Data
-    private static class ShiftResponse {
-        UUID    id;
-        UUID    talentId;
-        UUID    jobId;
-        Instant start;
-        Instant end;
+    @PostMapping("/cancelTalent/{talentId}")
+    public ResponseEntity<String> cancelShiftsForTalent(@PathVariable UUID talentId) {
+        boolean success = shiftService.cancelTalentAndReplaceShifts(talentId);
+        return success ? ResponseEntity.ok("Shifts cancelled for talent " + talentId + " and replacements shifts are created")
+                : ResponseEntity.status(HttpStatus.NOT_FOUND).body("No talent found with given TalentId: " + talentId);
     }
 }

@@ -1,59 +1,52 @@
 package com.zenjob.challenge.controller;
 
+import com.zenjob.challenge.dto.RequestJobRequestDto;
+import com.zenjob.challenge.dto.RequestJobResponseDto;
 import com.zenjob.challenge.dto.ResponseDto;
 import com.zenjob.challenge.entity.Job;
 import com.zenjob.challenge.service.JobService;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseBody;
+import jakarta.validation.Valid;
+import lombok.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
 import java.time.LocalDate;
 import java.util.UUID;
 
-@Controller
+@RestController
 @RequestMapping(path = "/job")
 @RequiredArgsConstructor
 public class JobController {
+
     private final JobService jobService;
 
     @PostMapping
-    @ResponseBody
-    public ResponseDto<RequestJobResponse> requestJob(@RequestBody @Valid RequestJobRequestDto dto) {
-        Job job = jobService.createJob(UUID.randomUUID(), dto.start, dto.end);
-        return ResponseDto.<RequestJobResponse>builder()
-                .data(RequestJobResponse.builder()
-                        .jobId(job.getId())
-                        .build())
-                .build();
+    @ResponseStatus(HttpStatus.CREATED)
+    public ResponseEntity<ResponseDto<Object>> createJob(@RequestBody @Valid RequestJobRequestDto dto) {
+
+        LocalDate maxDate = LocalDate.of(9999, 12, 31);
+
+        if (dto.getStart().isBefore(LocalDate.now()) || dto.getEnd().isBefore(dto.getStart()) || dto.getStart().isAfter(maxDate) || dto.getEnd().isAfter(maxDate)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseDto.builder()
+                            .error("Invalid date range")
+                            .build());
+        }
+            Job job = jobService.createJob(UUID.randomUUID(), dto.getStart(), dto.getEnd(), dto.getCompanyId());
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body((ResponseDto<Object>) ResponseDto.builder()
+                            .data(RequestJobResponseDto.builder()
+                                    .jobId(job.getId())
+                                    .build())
+                            .build());
     }
 
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Data
-    private static class RequestJobRequestDto {
-        @NotNull
-        private UUID      companyId;
-        @NotNull
-        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-        private LocalDate start;
-        @NotNull
-        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-        private LocalDate   end;
-    }
-
-    @Builder
-    @Data
-    private static class RequestJobResponse {
-        UUID jobId;
+    @DeleteMapping("/cancelJob/{jobId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public ResponseEntity<String> cancelJob(@PathVariable UUID jobId) {
+        boolean isDeleted = jobService.cancelJob(jobId);
+        return isDeleted ? ResponseEntity.ok("Job: "+jobId+ " is cancelled")
+                : ResponseEntity.status(HttpStatus.NOT_FOUND).body("Job not found for given JobId: "+jobId);
     }
 }

@@ -1,12 +1,14 @@
 package com.zenjob.challenge.dto;
 
-
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.UUID;
+
+
 @Builder
 @Data
-public class ResponseDto<K> {
-    K data;
-    private String error;
+public class RequestJobResponseDto {
+        UUID jobId;
 }
+
